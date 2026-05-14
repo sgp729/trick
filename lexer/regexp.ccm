@@ -1,0 +1,81 @@
+// Copyright (C) 2026 Georgiy Smykov
+
+/*
+        regexp.ccm
+        Compile-time symbolic regular expression building.
+
+        Example:
+        auto digit = regexp::range('0', '9');     // [0-9]
+        auto number = regexp::one_or_more(digit); // [0-9]+
+*/
+
+export module trick.regexp;
+
+namespace trick::regexp::detail {
+
+}
+
+export namespace trick::regexp {
+
+template<class C>
+class atom {
+public:
+        constexpr atom(C) noexcept;
+};
+
+template<class... Cs>
+class one_of {
+public:
+        constexpr one_of(Cs...) noexcept;
+};
+
+template<class... Cs>
+class not_one_of {
+public:
+        constexpr not_one_of(Cs...) noexcept;
+};
+
+template<class C>
+class range {
+public:
+        constexpr range(C, C) noexcept;
+};
+
+template<class... Exps>
+class any {
+public:
+        constexpr any(Exps...) noexcept;
+};
+
+template<class Exp>
+class zero_or_one {
+public:
+        constexpr zero_or_one(Exp) noexcept;
+};
+
+template<class Exp>
+class zero_or_more {
+public:
+        constexpr zero_or_more(Exp) noexcept;
+};
+
+template<class Exp>
+class one_or_more {
+public:
+        constexpr one_or_more(Exp) noexcept;
+};
+
+template<class... Exps>
+class sequence {
+public:
+        constexpr sequence(Exps...) noexcept;
+};
+
+constexpr auto whitespace = one_of(' ', '\t');
+constexpr auto digit = range('0', '9');
+constexpr auto lowercase = range('a', 'z');
+constexpr auto uppercase = range('A', 'Z');
+constexpr auto alphabet = any(lowercase, uppercase);
+constexpr auto alphanumeric = any(digit, alphabet);
+
+}
