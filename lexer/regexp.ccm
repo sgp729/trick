@@ -14,12 +14,14 @@ import std;
 
 namespace trick::regexp::detail {
 
+        class regexp_tag {};
+
 }
 
 export namespace trick::regexp {
 
 template<class C>
-class atom {
+class atom : detail::regexp_tag {
 public:
         constexpr atom(C) noexcept;
 
@@ -28,7 +30,7 @@ private:
 };
 
 template<class... Cs>
-class one_of {
+class one_of : detail::regexp_tag {
 public:
         constexpr one_of(Cs...) noexcept;
 
@@ -37,7 +39,7 @@ private:
 };
 
 template<class... Cs>
-class not_one_of {
+class not_one_of : detail::regexp_tag {
 public:
         constexpr not_one_of(Cs...) noexcept;
 
@@ -46,7 +48,7 @@ private:
 };
 
 template<class C>
-class range {
+class range : detail::regexp_tag {
 public:
         constexpr range(C, C) noexcept;
 
@@ -56,7 +58,7 @@ private:
 };
 
 template<class... Exps>
-class any {
+class any : detail::regexp_tag {
 public:
         constexpr any(Exps...) noexcept;
 
@@ -65,7 +67,7 @@ private:
 };
 
 template<class Exp>
-class zero_or_one {
+class zero_or_one : detail::regexp_tag {
 public:
         constexpr zero_or_one(Exp) noexcept;
 
@@ -74,7 +76,7 @@ private:
 };
 
 template<class Exp>
-class zero_or_more {
+class zero_or_more : detail::regexp_tag {
 public:
         constexpr zero_or_more(Exp) noexcept;
 
@@ -83,7 +85,7 @@ private:
 };
 
 template<class Exp>
-class one_or_more {
+class one_or_more : detail::regexp_tag {
 public:
         constexpr one_or_more(Exp) noexcept;
 
@@ -92,7 +94,7 @@ private:
 };
 
 template<class... Exps>
-class sequence {
+class sequence : detail::regexp_tag {
 public:
         constexpr sequence(Exps...) noexcept;
 
@@ -141,5 +143,8 @@ constexpr auto lower = range('a', 'z');
 constexpr auto upper = range('A', 'Z');
 constexpr auto alpha = any(lower, upper);
 constexpr auto alphanum = any(digit, alpha);
+
+template<class T>
+concept regexp = std::is_base_of_v<detail::regexp_tag, std::remove_cvref_t<T>>;
 
 }
