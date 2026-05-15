@@ -9,7 +9,7 @@
         auto number = regexp::one_or_more(digit); // [0-9]+
 */
 
-export module trick.regexp;
+export module regexp;
 import std;
 
 namespace trick::regexp::detail {
