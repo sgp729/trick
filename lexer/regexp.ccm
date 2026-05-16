@@ -20,36 +20,46 @@ namespace trick::regexp::detail {
 
 export namespace trick::regexp {
 
+template<class R>
+concept regexp = std::is_base_of_v<detail::regexp_tag, std::remove_cvref_t<R>>;
+
 template<class C>
+concept regexp_char = std::integral<C>;
+
+template<regexp_char C>
 class atom : detail::regexp_tag {
 public:
+        using char_type = C;
         constexpr atom(C) noexcept;
 
 private:
         C atom_char;
 };
 
-template<class... Cs>
+template<regexp_char... Cs>
 class one_of : detail::regexp_tag {
 public:
+        using char_type = Cs...[0];
         constexpr one_of(Cs...) noexcept;
 
 private:
         std::tuple<Cs...> chars;
 };
 
-template<class... Cs>
+template<regexp_char... Cs>
 class not_one_of : detail::regexp_tag {
 public:
+        using char_type = Cs...[0];
         constexpr not_one_of(Cs...) noexcept;
 
 private:
         std::tuple<Cs...> chars;
 };
 
-template<class C>
+template<regexp_char C>
 class range : detail::regexp_tag {
 public:
+        using char_type = C;
         constexpr range(C, C) noexcept;
 
 private:
@@ -57,85 +67,90 @@ private:
         C end;
 };
 
-template<class... Exps>
+template<regexp... Exps>
 class any : detail::regexp_tag {
 public:
+        using char_type = Exps...[0]::char_type;
         constexpr any(Exps...) noexcept;
 
 private:
         std::tuple<Exps...> expressions;
 };
 
-template<class Exp>
+template<regexp Exp>
 class zero_or_one : detail::regexp_tag {
 public:
+        using char_type = Exp::char_type;
         constexpr zero_or_one(Exp) noexcept;
 
 private:
         Exp expression;
 };
 
-template<class Exp>
+template<regexp Exp>
 class zero_or_more : detail::regexp_tag {
 public:
+        using char_type = Exp::char_type;
         constexpr zero_or_more(Exp) noexcept;
 
 private:
         Exp expression;
 };
 
-template<class Exp>
+template<regexp Exp>
 class one_or_more : detail::regexp_tag {
 public:
+        using char_type = Exp::char_type;
         constexpr one_or_more(Exp) noexcept;
 
 private:
         Exp expression;
 };
 
-template<class... Exps>
-class sequence : detail::regexp_tag {
+template<regexp... Exps>
+class concat : detail::regexp_tag {
 public:
-        constexpr sequence(Exps...) noexcept;
+        using char_type = Exps...[0]::char_type;
+        constexpr concat(Exps...) noexcept;
 
 private:
         std::tuple<Exps...> expressions;
 };
 
-template<class C>
+template<regexp_char C>
 constexpr atom<C>::atom(C atom_char) noexcept
         : atom_char(atom_char) {}
 
-template<class... Cs>
+template<regexp_char... Cs>
 constexpr one_of<Cs...>::one_of(Cs... chars) noexcept
         : chars(chars...) {}
 
-template<class... Cs>
+template<regexp_char... Cs>
 constexpr not_one_of<Cs...>::not_one_of(Cs... chars) noexcept
         : chars(chars...) {}
 
-template<class C>
+template<regexp_char C>
 constexpr range<C>::range(C begin, C end) noexcept
         : begin(begin), end(end) {}
 
-template<class... Exps>
+template<regexp... Exps>
 constexpr any<Exps...>::any(Exps... expressions) noexcept
         : expressions(expressions...) {}
 
-template<class Exp>
+template<regexp Exp>
 constexpr zero_or_one<Exp>::zero_or_one(Exp expression) noexcept
         : expression(expression) {}
 
-template<class Exp>
+template<regexp Exp>
 constexpr zero_or_more<Exp>::zero_or_more(Exp expression) noexcept
         : expression(expression) {}
 
-template<class Exp>
+template<regexp Exp>
 constexpr one_or_more<Exp>::one_or_more(Exp expression) noexcept
         : expression(expression) {}
 
-template<class... Exps>
-constexpr sequence<Exps...>::sequence(Exps... expressions) noexcept
+template<regexp... Exps>
+constexpr concat<Exps...>::concat(Exps... expressions) noexcept
         : expressions(expressions...) {}
 
 constexpr auto digit = range('0', '9');
@@ -143,8 +158,5 @@ constexpr auto lower = range('a', 'z');
 constexpr auto upper = range('A', 'Z');
 constexpr auto alpha = any(lower, upper);
 constexpr auto alphanum = any(digit, alpha);
-
-template<class T>
-concept regexp = std::is_base_of_v<detail::regexp_tag, std::remove_cvref_t<T>>;
 
 }
