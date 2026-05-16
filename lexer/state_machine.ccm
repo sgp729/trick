@@ -1,0 +1,46 @@
+// Copyright (C) 2026 Georgiy Smykov
+
+/*
+        state_machine.ccm
+        Compile-time state machine building from symbolic regular expressions.
+
+        Example:
+        next_state = state_machine.transition(state, input);
+        bool is_error = state_machine.is_error(next_state);
+        bool is_final = state_machine.is_final(next_state);
+*/
+
+export module state_machine;
+import std;
+import regexp;
+
+export namespace trick::state_machine {
+
+template<class T, regexp::regexp... Rs>
+using description = std::tuple<std::pair<Rs, T>...>;
+
+}
+
+namespace trick::state_machine::detail {
+
+}
+
+export namespace trick::state_machine {
+
+class state_machine {
+public:
+        template<class T, regexp::regexp... Rs>
+        consteval state_machine(description<T, Rs...> description) noexcept;
+};
+
+template<class T, regexp::regexp... Rs>
+consteval state_machine::state_machine(description<T, Rs...> description) noexcept {
+
+        auto [...desc_pairs] = description;
+        auto [...regexes] = { desc_pairs.first... };
+
+        // reduce alphabet, build NFA, DFA
+        // save to static storage
+}
+
+}
