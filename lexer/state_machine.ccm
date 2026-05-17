@@ -39,47 +39,6 @@ consteval detail::char_ranges collect_char_ranges(const regexp::atom<C>& atom) {
         return detail::char_ranges{ {atom.atom_char, atom.atom_char} };
 }
 
-template<regexp::regexp_char... Cs>
-consteval detail::char_ranges collect_char_ranges(const regexp::one_of<Cs...>& one_of) {
-
-        detail::char_ranges char_ranges;
-
-        auto is_consecutive = [](char_type cur, char_type next) {
-                return cur + 1 == next;
-        };
-        auto groups = std::views::chunk_by(one_of.chars, is_consecutive);
-        std::for_each(groups, [&char_ranges](auto&& rng) {
-                char_ranges.emplace(*rng.begin(), *std::prev(rng.end()));
-        });
-        return char_ranges;
-}
-
-template<regexp::regexp_char... Cs>
-consteval detail::char_ranges collect_char_ranges(const regexp::not_one_of<Cs...>& not_one_of) {
-
-        detail::char_ranges char_ranges;
-
-        auto is_consecutive = [](char_type cur, char_type next) {
-                return cur + 1 == next;
-        };
-        auto groups = std::views::chunk_by(not_one_of.chars, is_consecutive);
-        std::for_each(groups | std::views::slide(2), [&char_ranges](auto&& lrng, auto&& rrng) {
-                char_ranges.emplace(*std::prev(rrng.end()) + 1, *lrng.begin() - 1);
-        });
-
-        constexpr int int_min = std::numeric_limits<int>::min();
-        constexpr int int_max = std::numeric_limits<int>::max();
-        auto first_group = *groups.begin();
-        auto last_group = *std::prev(groups.end());
-
-        if (char_type first_char = *first_group.begin(); first_char != int_min) {
-                char_ranges.emplace(int_min, first_char - 1);
-        }
-        if (char_type last_char = *std::prev(last_group.end()); last_char != int_max) {
-                char_ranges.emplace(last_char + 1, int_max);
-        }
-}
-
 template<regexp::regexp... Rs>
 consteval auto collect_char_ranges(Rs... regexps) {
 

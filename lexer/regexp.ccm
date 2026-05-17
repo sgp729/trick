@@ -35,20 +35,6 @@ struct atom : detail::regexp_tag {
         char_type atom_char;
 };
 
-template<regexp_char... Cs>
-struct one_of : detail::regexp_tag {
-
-        constexpr one_of(Cs...) noexcept;
-        std::array<char_type, sizeof...(Cs)> chars;
-};
-
-template<regexp_char... Cs>
-struct not_one_of : detail::regexp_tag {
-
-        constexpr not_one_of(Cs...) noexcept;
-        std::array<char_type, sizeof...(Cs)> chars;
-};
-
 template<regexp_char C>
 struct range : detail::regexp_tag {
 
@@ -95,14 +81,6 @@ struct concat : detail::regexp_tag {
 template<regexp_char C>
 constexpr atom<C>::atom(C atom_char) noexcept
         : atom_char(atom_char) {}
-
-template<regexp_char... Cs>
-constexpr one_of<Cs...>::one_of(Cs... chars) noexcept
-        : chars(std::ranges::sort({chars...})) {}
-
-template<regexp_char... Cs>
-constexpr not_one_of<Cs...>::not_one_of(Cs... chars) noexcept
-        : chars(std::ranges::sort({chars...})) {}
 
 template<regexp_char C>
 constexpr range<C>::range(C begin, C end) noexcept
