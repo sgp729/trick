@@ -19,28 +19,39 @@ export namespace trick::state_machine {
 template<class T, regexp::regexp... Rs>
 using description = std::tuple<std::pair<Rs, T>...>;
 
-}
+} // trick::state_machine
 
 namespace trick::state_machine::detail {
 
 using char_type = regexp::char_type;
 using char_range = std::pair<char_type, char_type>;
 
-struct pair_hash {
-        bool operator()(const char_range& p) {
-                return std::hash<char_type>{}(p.first)
-                     ^ std::hash<char_type>{}(p.second);
-        }
-};
-using char_ranges = std::unordered_set<char_range, pair_hash>;
+using char_ranges = std::set<char_range>;
 
 template<regexp::regexp_char C>
-consteval detail::char_ranges collect_char_ranges(const regexp::atom<C>& atom) {
+constexpr detail::char_ranges collect_char_ranges(const regexp::atom<C>& atom) {
         return detail::char_ranges{ {atom.atom_char, atom.atom_char} };
 }
 
+template<regexp::regexp_char C>
+constexpr detail::char_ranges collect_char_ranges(const regexp::range<C>& range) {
+
+        return detail::char_ranges{ {range.begin, range.end} };
+}
+
+// forward declaration for top-level collect_char_ranges
 template<regexp::regexp... Rs>
-consteval auto collect_char_ranges(Rs... regexps) {
+constexpr detail::char_ranges collect_char_ranges(const Rs&...);
+
+template<template<class...> class R, regexp::regexp... Exps>
+constexpr detail::char_ranges collect_char_ranges(const R<Exps...>& subexpr_regexp) {
+
+        const auto& [...regexps] = subexpr_regexp.subexpr;
+        return detail::collect_char_ranges(regexps...);
+}
+
+template<regexp::regexp... Rs>
+constexpr detail::char_ranges collect_char_ranges(const Rs&... regexps) {
 
         detail::char_ranges char_ranges{};
         template for (auto regex : {regexps...}) {
@@ -51,12 +62,19 @@ consteval auto collect_char_ranges(Rs... regexps) {
 }
 
 template<regexp::regexp... Rs>
-consteval auto reduce_alphabet(Rs... regexes) {
+constexpr auto reduce_alphabet(const Rs&... regexes) {
 
-        // auto all_char_ranges = detail::collect_char_ranges(regexes);
+        char_ranges all_char_ranges = detail::collect_char_ranges(regexes...);
+
+        if (all_char_ranges.empty()) {
+                return all_char_ranges;
+        }
+
+        char_ranges disjoint_char_ranges;
+        return disjoint_char_ranges;
 }
 
-}
+} // trick::state_machine::detail
 
 export namespace trick::state_machine {
 
@@ -72,7 +90,7 @@ consteval state_machine::state_machine(description<T, Rs...> description) noexce
         auto [...desc_pairs] = description;
         auto [...regexes] = { desc_pairs.first... };
 
-        auto reduced_alphabet = detail::reduce_alphabet(regexes...);
+        // auto reduced_alphabet = detail::reduce_alphabet(regexes...);
 
         // auto nfa = detail::construct_nfa(description, reduced_alphabet);
         // auto dfa = detail::construct_dfa(nfa);
@@ -80,4 +98,4 @@ consteval state_machine::state_machine(description<T, Rs...> description) noexce
         // *some_internal_state* = detail::move_to_static_storage(dfa);
 }
 
-}
+} // trick::state_machine
