@@ -47,35 +47,35 @@ template<regexp... Exps>
 struct any : detail::regexp_tag {
 
         constexpr any(Exps...) noexcept;
-        std::tuple<Exps...> expressions;
+        std::tuple<Exps...> subexpr;
 };
 
 template<regexp Exp>
 struct zero_or_one : detail::regexp_tag {
 
         constexpr zero_or_one(Exp) noexcept;
-        Exp expression;
+        Exp subexpr;
 };
 
 template<regexp Exp>
 struct zero_or_more : detail::regexp_tag {
 
         constexpr zero_or_more(Exp) noexcept;
-        Exp expression;
+        Exp subexpr;
 };
 
 template<regexp Exp>
 struct one_or_more : detail::regexp_tag {
 
         constexpr one_or_more(Exp) noexcept;
-        Exp expression;
+        Exp subexpr;
 };
 
 template<regexp... Exps>
 struct concat : detail::regexp_tag {
 
         constexpr concat(Exps...) noexcept;
-        std::tuple<Exps...> expressions;
+        std::tuple<Exps...> subexpr;
 };
 
 template<regexp_char C>
@@ -87,24 +87,24 @@ constexpr range<C>::range(C begin, C end) noexcept
         : begin(std::min(begin, end)), end(std::max(begin, end)) {}
 
 template<regexp... Exps>
-constexpr any<Exps...>::any(Exps... expressions) noexcept
-        : expressions(expressions...) {}
+constexpr any<Exps...>::any(Exps... subexpr) noexcept
+        : subexpr(subexpr...) {}
 
 template<regexp Exp>
-constexpr zero_or_one<Exp>::zero_or_one(Exp expression) noexcept
-        : expression(expression) {}
+constexpr zero_or_one<Exp>::zero_or_one(Exp subexpr) noexcept
+        : subexpr(subexpr) {}
 
 template<regexp Exp>
-constexpr zero_or_more<Exp>::zero_or_more(Exp expression) noexcept
-        : expression(expression) {}
+constexpr zero_or_more<Exp>::zero_or_more(Exp subexpr) noexcept
+        : subexpr(subexpr) {}
 
 template<regexp Exp>
-constexpr one_or_more<Exp>::one_or_more(Exp expression) noexcept
-        : expression(expression) {}
+constexpr one_or_more<Exp>::one_or_more(Exp subexpr) noexcept
+        : subexpr(subexpr) {}
 
 template<regexp... Exps>
-constexpr concat<Exps...>::concat(Exps... expressions) noexcept
-        : expressions(expressions...) {}
+constexpr concat<Exps...>::concat(Exps... subexpr) noexcept
+        : subexpr(subexpr...) {}
 
 constexpr auto digit = range('0', '9');
 constexpr auto lower = range('a', 'z');
