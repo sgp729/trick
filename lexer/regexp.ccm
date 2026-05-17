@@ -9,41 +9,19 @@
         auto number = regexp::one_or_more(digit); // [0-9]+
 */
 
-module;
-
-#include <meta>
-#include <algorithm>
-#include <array>
-#include <tuple>
-
 export module regexp;
-// cannot do import std here because <meta> is not a part of std module.
-// import std;
+import std;
 
 namespace trick::regexp::detail {
 
 class regexp_tag {};
-constexpr regexp_tag regexp;
-
-template<class T>
-consteval bool has_annotation(std::meta::info r, const T& value) {
-        return std::ranges::contains(
-                std::meta::annotations_of_with_type(r, ^^T),
-                std::meta::reflect_constant(value),
-                std::meta::constant_of
-        );
-}
-
-consteval bool same_type(auto info, auto... info_rest) {
-        return ((info == info_rest) && ...);
-}
 
 }
 
 export namespace trick::regexp {
 
 template<class R>
-concept regexp = detail::has_annotation(^^R, detail::regexp);
+concept regexp = std::is_base_of_v<detail::regexp_tag, R>;
 
 using char_type = int;
 
@@ -51,28 +29,28 @@ template<class C>
 concept regexp_char = std::convertible_to<C, char_type>;
 
 template<regexp_char C>
-struct [[=detail::regexp]] atom {
+struct atom : detail::regexp_tag {
 
         constexpr atom(C) noexcept;
         char_type atom_char;
 };
 
 template<regexp_char... Cs>
-struct [[=detail::regexp]] one_of {
+struct one_of : detail::regexp_tag {
 
         constexpr one_of(Cs...) noexcept;
         std::array<char_type, sizeof...(Cs)> chars;
 };
 
 template<regexp_char... Cs>
-struct [[=detail::regexp]] not_one_of {
+struct not_one_of : detail::regexp_tag {
 
         constexpr not_one_of(Cs...) noexcept;
         std::array<char_type, sizeof...(Cs)> chars;
 };
 
 template<regexp_char C>
-struct [[=detail::regexp]] range {
+struct range : detail::regexp_tag {
 
         constexpr range(C, C) noexcept;
         char_type begin;
@@ -80,35 +58,35 @@ struct [[=detail::regexp]] range {
 };
 
 template<regexp... Exps>
-struct [[=detail::regexp]] any {
+struct any : detail::regexp_tag {
 
         constexpr any(Exps...) noexcept;
         std::tuple<Exps...> expressions;
 };
 
 template<regexp Exp>
-struct [[=detail::regexp]] zero_or_one {
+struct zero_or_one : detail::regexp_tag {
 
         constexpr zero_or_one(Exp) noexcept;
         Exp expression;
 };
 
 template<regexp Exp>
-struct [[=detail::regexp]] zero_or_more {
+struct zero_or_more : detail::regexp_tag {
 
         constexpr zero_or_more(Exp) noexcept;
         Exp expression;
 };
 
 template<regexp Exp>
-struct [[=detail::regexp]] one_or_more {
+struct one_or_more : detail::regexp_tag {
 
         constexpr one_or_more(Exp) noexcept;
         Exp expression;
 };
 
 template<regexp... Exps>
-struct [[=detail::regexp]] concat {
+struct concat : detail::regexp_tag {
 
         constexpr concat(Exps...) noexcept;
         std::tuple<Exps...> expressions;
@@ -128,7 +106,7 @@ constexpr not_one_of<Cs...>::not_one_of(Cs... chars) noexcept
 
 template<regexp_char C>
 constexpr range<C>::range(C begin, C end) noexcept
-        : begin(begin), end(end) {}
+        : begin(std::min(begin, end)), end(std::max(begin, end)) {}
 
 template<regexp... Exps>
 constexpr any<Exps...>::any(Exps... expressions) noexcept
