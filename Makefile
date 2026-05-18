@@ -20,6 +20,7 @@ PCM = gcm
 ### Subdirectory includes
 include macros.mk
 include std.mk
+include lexer/lexer.mk
 
 ### Top-level Makefile
 .PHONY: all
