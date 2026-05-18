@@ -1,0 +1,11 @@
+
+STD_SOURCE_DIR = bits
+STD = std
+STD_MODULE = $(MODULES_DIR)/$(STD).$(PCM)
+STD_SOURCE = $(STD_SOURCE_DIR)/$(STD).cc
+STD_OBJECT = $(BUILD_DIR)/$(STD).o
+
+$(STD_MODULE):
+>       $(CXX) $(CXXFLAGS) -fsearch-include-path $(STD_SOURCE) -c -o $(STD_OBJECT)
+
+SUBDIR_TARGETS += $(STD_MODULE) $(STD_OBJECT)
