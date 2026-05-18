@@ -70,7 +70,20 @@ constexpr auto reduce_alphabet(const Rs&... regexes) {
                 return all_char_ranges;
         }
 
+        std::set<int> canonical_bounds;
+        std::ranges::for_each(all_char_ranges, [&canonical_bounds](auto&& range) {
+                canonical_bounds.insert({ range.first, range.second + 1 });
+        });
+
         char_ranges disjoint_char_ranges;
+        auto&& sliding_window = std::views::slide(canonical_bounds, 2);
+
+        std::ranges::for_each(sliding_window, [&disjoint_char_ranges](auto&& range) {
+                auto&& cur = *range.begin();
+                auto&& next = *std::next(range.begin());
+                if (cur < next) { disjoint_char_ranges.emplace(cur, next - 1); }
+        });
+
         return disjoint_char_ranges;
 }
 
