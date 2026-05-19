@@ -25,7 +25,6 @@ namespace trick::state_machine::detail {
 
 using char_type = regexp::char_type;
 using char_range = std::pair<char_type, char_type>;
-
 using char_ranges = std::set<char_range>;
 
 template<regexp::regexp_char C>
@@ -89,16 +88,114 @@ constexpr auto reduce_alphabet(const Rs&... regexes) {
 
 } // trick::state_machine::detail
 
+namespace trick::state_machine::detail { // detail for tagged nfa building
+
+using symbol = int;
+using state_id = int;
+using tag = int;
+
+struct nfa {
+
+        struct transition {
+                state_id from{};
+                state_id to{};
+                std::optional<symbol> sym{std::nullopt};
+        };
+
+        state_id start;
+        state_id end;
+        std::vector<transition> transitions;
+};
+
+struct tagged_nfa {
+
+        using transition = nfa::transition;
+        struct accepting {
+                state_id id;
+                std::vector<tag> tags;
+        };
+
+        state_id start;
+        std::vector<accepting> ends;
+        std::vector<transition> transitions;
+};
+
+constexpr detail::nfa build_symbol(symbol symbol, int& free_state) noexcept {
+
+        state_id start{free_state++}, end{free_state++};
+
+        return detail::nfa{
+                .start = start,
+                .end = end,
+                .transitions = { {start, end, symbol} }
+        };
+}
+
+constexpr detail::nfa
+build_union(const detail::nfa& nfa1, const detail::nfa& nfa2, int& free_state) {
+
+        state_id start{free_state++}, end{free_state++};
+
+        detail::nfa nfa{
+                .start = start,
+                .end = end,
+                .transitions = {
+                        {nfa1.end, end},
+                        {nfa2.end, end}
+                }
+        };
+        nfa.transitions.append_range(std::views::concat(
+                nfa1.transitions,
+                nfa2.transitions
+        ));
+        return nfa;
+}
+
+constexpr detail::nfa
+build_concat(const detail::nfa& nfa1, const detail::nfa& nfa2) {
+
+        detail::nfa nfa{
+                .start = nfa1.start,
+                .end = nfa2.end,
+                .transitions = { {nfa1.end, nfa2.start} }
+        };
+        nfa.transitions.append_range(std::views::concat(
+                nfa1.transitions,
+                nfa2.transitions
+        ));
+        return nfa;
+}
+
+constexpr detail::nfa
+build_kleene_star(const detail::nfa& inner, int& free_state) {
+
+        state_id start{free_state++}, end{free_state++};
+        detail::nfa nfa{
+                .start = start,
+                .end = end,
+                .transitions = {
+                        {start, inner.start},
+                        {inner.end, inner.start},
+                        {inner.end, end},
+                        {start, end}
+                }
+        };
+        nfa.transitions.append_range(inner.transitions);
+        return nfa;
+}
+
+} // trick::state_machine::detail
+
 export namespace trick::state_machine {
 
 class state_machine {
 public:
         template<class T, regexp::regexp... Rs>
-        consteval state_machine(description<T, Rs...> description) noexcept;
+        constexpr state_machine(const description<T, Rs...>& description) noexcept;
 };
 
 template<class T, regexp::regexp... Rs>
-consteval state_machine::state_machine(description<T, Rs...> description) noexcept {
+constexpr state_machine::state_machine(const description<T, Rs...>& description) noexcept {
 
         auto [...desc_pairs] = description;
         auto [...regexes] = { desc_pairs.first... };
