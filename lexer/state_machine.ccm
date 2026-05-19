@@ -61,9 +61,9 @@ constexpr detail::char_ranges collect_char_ranges(const Rs&... regexps) {
 }
 
 template<regexp::regexp... Rs>
-constexpr auto reduce_alphabet(const Rs&... regexes) {
+constexpr auto reduce_alphabet(const Rs&... regexps) {
 
-        char_ranges all_char_ranges = detail::collect_char_ranges(regexes...);
+        char_ranges all_char_ranges = detail::collect_char_ranges(regexps...);
 
         if (all_char_ranges.empty()) {
                 return all_char_ranges;
@@ -75,11 +75,11 @@ constexpr auto reduce_alphabet(const Rs&... regexes) {
         });
 
         char_ranges disjoint_char_ranges;
-        auto&& sliding_window = std::views::slide(canonical_bounds, 2);
+        auto sliding_window = std::views::slide(canonical_bounds, 2);
 
         std::ranges::for_each(sliding_window, [&disjoint_char_ranges](auto&& range) {
-                auto&& cur = *range.begin();
-                auto&& next = *std::next(range.begin());
+                auto cur = *range.begin();
+                auto next = *std::next(range.begin());
                 if (cur < next) { disjoint_char_ranges.emplace(cur, next - 1); }
         });
 
@@ -198,9 +198,9 @@ template<class T, regexp::regexp... Rs>
 constexpr state_machine::state_machine(const description<T, Rs...>& description) noexcept {
 
         auto [...desc_pairs] = description;
-        auto [...regexes] = { desc_pairs.first... };
+        auto [...regexps] = { desc_pairs.first... };
 
-        // auto reduced_alphabet = detail::reduce_alphabet(regexes...);
+        // auto reduced_alphabet = detail::reduce_alphabet(regexps...);
 
         // auto nfa = detail::construct_nfa(description, reduced_alphabet);
         // auto dfa = detail::construct_dfa(nfa);
