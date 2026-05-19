@@ -203,6 +203,73 @@ build_kleene_star(const detail::nfa& inner, state_allocator& alloc) noexcept {
         return nfa;
 }
 
+template<regexp::regexp_char C, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::atom<C>& atom, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        detail::symbol sym = alphabet.to_symbol(atom.atom_char);
+        return build_symbol(sym, alloc);
+}
+
+template<regexp::regexp_char C, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::range<C>& range, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        std::vector<detail::symbol> syms = alphabet.to_symbols({range.begin, range.end});
+
+        detail::nfa nfa = build_symbol(syms.front(), alloc);
+        std::ranges::for_each(std::views::drop(syms, 1), [&](auto&& sym) {
+                nfa = detail::build_union(nfa, build_symbol(sym, alloc), alloc);
+        });
+        return nfa;
+}
+
+template<regexp::regexp... Exps, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::any<Exps...>& any, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto [regexp, ...rest] = any.subexpr;
+        detail::nfa nfa = thompson_construction(regexp, alphabet, alloc);
+
+        template for (auto regexp : {rest...}) {
+                nfa = detail::build_union(nfa, thompson_construction(regexp), alloc);
+        }
+        return nfa;
+}
+
+template<regexp::regexp Exp, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::zero_or_one<Exp>& zero_or_one, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto regexp = zero_or_one.subexpr;
+        return detail::build_union(
+                detail::build_epsilon(alloc),
+                thompson_construction(regexp, alphabet, alloc),
+                alloc
+        );
+}
+
+template<regexp::regexp Exp, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::zero_or_more<Exp>& zero_or_more, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto regexp = zero_or_more.subexpr;
+        return detail::build_kleene_star(
+                thompson_construction(regexp, alphabet, alloc),
+                alloc
+        );
+}
+
 } // trick::state_machine::detail
 
 export namespace trick::state_machine {
