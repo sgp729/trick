@@ -90,8 +90,18 @@ constexpr auto reduce_alphabet(const Rs&... regexps) {
 
 namespace trick::state_machine::detail { // detail for tagged nfa building
 
-using symbol = int;
 using state_id = int;
+
+class state_allocator {
+public:
+        constexpr state_allocator() = default;
+        constexpr state_id allocate() { return next++; }
+
+private:
+        state_id next{0};
+};
+
+using symbol = int;
 using tag = int;
 
 struct nfa {
@@ -120,10 +130,19 @@ struct tagged_nfa {
         std::vector<transition> transitions;
 };
 
-constexpr detail::nfa build_symbol(symbol symbol, int& free_state) noexcept {
+constexpr detail::nfa build_epsilon(state_allocator& alloc) noexcept {
 
-        state_id start{free_state++}, end{free_state++};
+        state_id start{alloc.allocate()}, end{alloc.allocate()};
+        return detail::nfa{
+                .start = start,
+                .end = end,
+                .transitions = { {start, end} }
+        };
+}
 
+constexpr detail::nfa build_symbol(symbol symbol, state_allocator& alloc) noexcept {
+
+        state_id start{alloc.allocate()}, end{alloc.allocate()};
         return detail::nfa{
                 .start = start,
                 .end = end,
@@ -132,9 +151,9 @@ constexpr detail::nfa build_symbol(symbol symbol, int& free_state) noexcept {
 }
 
 constexpr detail::nfa
-build_union(const detail::nfa& nfa1, const detail::nfa& nfa2, int& free_state) {
+build_union(const detail::nfa& nfa1, const detail::nfa& nfa2, state_allocator& alloc) noexcept {
 
-        state_id start{free_state++}, end{free_state++};
+        state_id start{alloc.allocate()}, end{alloc.allocate()};
 
         detail::nfa nfa{
                 .start = start,
@@ -152,7 +171,7 @@ build_union(const detail::nfa& nfa1, const detail::nfa& nfa2, int& free_state) {
 }
 
 constexpr detail::nfa
-build_concat(const detail::nfa& nfa1, const detail::nfa& nfa2) {
+build_concat(const detail::nfa& nfa1, const detail::nfa& nfa2) noexcept {
 
         detail::nfa nfa{
                 .start = nfa1.start,
@@ -167,9 +186,9 @@ build_concat(const detail::nfa& nfa1, const detail::nfa& nfa2) {
 }
 
 constexpr detail::nfa
-build_kleene_star(const detail::nfa& inner, int& free_state) {
+build_kleene_star(const detail::nfa& inner, state_allocator& alloc) noexcept {
 
-        state_id start{free_state++}, end{free_state++};
+        state_id start{alloc.allocate()}, end{alloc.allocate()};
         detail::nfa nfa{
                 .start = start,
                 .end = end,
