@@ -203,6 +203,23 @@ build_kleene_star(const detail::nfa& inner, state_allocator& alloc) noexcept {
         return nfa;
 }
 
+constexpr detail::nfa
+build_one_or_more(const detail::nfa& inner, state_allocator& alloc) noexcept {
+
+        state_id start{alloc.allocate()}, end{alloc.allocate()};
+        detail::nfa nfa{
+                .start = start,
+                .end = end,
+                .transitions = {
+                        {start, inner.start},
+                        {inner.end, inner.start},
+                        {inner.end, end}
+                }
+        };
+        nfa.transitions.append_range(inner.transitions);
+        return nfa;
+}
+
 template<regexp::regexp_char C, class A>
 constexpr detail::nfa
 thompson_construction
@@ -268,6 +285,33 @@ noexcept {
                 thompson_construction(regexp, alphabet, alloc),
                 alloc
         );
+}
+
+template<regexp::regexp Exp, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::one_or_more<Exp>& one_or_more, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto regexp = one_or_more.subexpr;
+        return detail::build_one_or_more(
+                thompson_construction(regexp, alphabet, alloc),
+                alloc
+        );
+}
+
+template<regexp::regexp... Exps, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::concat<Exps...> concat, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto [regexp, ...rest] = concat.subexpr;
+        detail::nfa nfa = thompson_construction(regexp, alphabet, alloc);
+        template for (auto regexp : {rest...}) {
+                nfa = build_concat(nfa, thompson_construction(regexp, alphabet, alloc));
+        }
+        return nfa;
 }
 
 } // trick::state_machine::detail
