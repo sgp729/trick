@@ -32,6 +32,13 @@ constexpr detail::char_ranges collect_char_ranges(const regexp::atom<C>& atom) {
         return detail::char_ranges{ {atom.atom_char, atom.atom_char} };
 }
 
+template<regexp::regexp_char C, int N>
+constexpr detail::char_ranges collect_char_ranges(const regexp::literal<C, N>& literal) {
+
+        auto [...chars] = literal.chars;
+        return detail::char_ranges{ {chars, chars}... };
+}
+
 template<regexp::regexp_char C>
 constexpr detail::char_ranges collect_char_ranges(const regexp::range<C>& range) {
 
@@ -228,6 +235,20 @@ noexcept {
 
         detail::symbol sym = alphabet.to_symbol(atom.atom_char);
         return build_symbol(sym, alloc);
+}
+
+template<regexp::regexp_char C, int N, class A>
+constexpr detail::nfa
+thompson_construction
+        (const regexp::literal<C, N>& literal, const A& alphabet, state_allocator& alloc)
+noexcept {
+
+        auto [first, ...rest] = literal.chars;
+        detail::nfa nfa = build_symbol(alphabet.to_symbol(first), alloc);
+
+        template for (char_type next : {rest...}) {
+                nfa = build_concat(nfa, build_symbol(alphabet.to_symbol(next), alloc));
+        }
 }
 
 template<regexp::regexp_char C, class A>
