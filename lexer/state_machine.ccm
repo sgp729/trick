@@ -21,14 +21,53 @@ using description = std::tuple<std::pair<Rs, T>...>;
 
 } // trick::state_machine
 
-namespace trick::state_machine::detail {
+namespace trick::state_machine::detail { // detail for atomic alphabet construction
 
 using char_type = regexp::char_type;
 using char_range = std::pair<char_type, char_type>;
 using char_ranges = std::set<char_range>;
+using flat_char_ranges = std::vector<char_range>;
+using symbol = int;
+
+class atomic_alphabet {
+public:
+        template<class R>
+        constexpr atomic_alphabet(R&&) noexcept;
+
+        constexpr symbol to_symbol(const char_type&) const noexcept;
+        constexpr std::vector<symbol> to_symbols(const char_range&) const noexcept;
+
+private:
+        flat_char_ranges ranges;
+};
+
+template<class S>
+constexpr atomic_alphabet::atomic_alphabet(S&& ranges) noexcept
+        : ranges(ranges) {}
+
+constexpr symbol atomic_alphabet::to_symbol(const char_type& ch) const noexcept {
+
+        return std::ranges::distance(
+                ranges.begin(),
+                std::ranges::find(ranges, ch, &char_range::first)
+        );
+}
+
+constexpr std::vector<symbol> atomic_alphabet::to_symbols(const char_range& range) const noexcept {
+
+        auto [first, second] = range;
+        symbol first_sym = std::ranges::distance(
+                ranges.begin(), std::ranges::find(ranges, first, &char_range::first)
+        );
+        symbol second_sym = std::ranges::distance(
+                ranges.begin(), std::ranges::find(ranges, second, &char_range::second)
+        );
+        return std::vector{std::from_range, std::views::iota(first_sym, second_sym + 1)};
+}
 
 template<regexp::regexp_char C>
 constexpr detail::char_ranges collect_char_ranges(const regexp::atom<C>& atom) {
+
         return detail::char_ranges{ {atom.atom_char, atom.atom_char} };
 }
 
@@ -68,29 +107,35 @@ constexpr detail::char_ranges collect_char_ranges(const Rs&... regexps) {
 }
 
 template<regexp::regexp... Rs>
-constexpr auto reduce_alphabet(const Rs&... regexps) {
+constexpr detail::flat_char_ranges reduce_alphabet(const Rs&... regexps) {
 
-        char_ranges all_char_ranges = detail::collect_char_ranges(regexps...);
+        detail::char_ranges all_char_ranges = detail::collect_char_ranges(regexps...);
 
         if (all_char_ranges.empty()) {
-                return all_char_ranges;
+                return {};
         }
 
-        std::set<int> canonical_bounds;
+        std::set<char_type> canonical_bounds;
         std::ranges::for_each(all_char_ranges, [&canonical_bounds](auto&& range) {
                 canonical_bounds.insert({ range.first, range.second + 1 });
         });
 
-        char_ranges disjoint_char_ranges;
+        detail::flat_char_ranges disjoint_char_ranges;
         auto sliding_window = std::views::slide(canonical_bounds, 2);
 
         std::ranges::for_each(sliding_window, [&disjoint_char_ranges](auto&& range) {
                 auto cur = *range.begin();
                 auto next = *std::next(range.begin());
-                if (cur < next) { disjoint_char_ranges.emplace(cur, next - 1); }
+                if (cur < next) { disjoint_char_ranges.emplace_back(cur, next - 1); }
         });
 
         return disjoint_char_ranges;
+}
+
+template<regexp::regexp... Rs>
+constexpr detail::atomic_alphabet make_atomic_alphabet(const Rs&... regexps) {
+
+        return detail::atomic_alphabet(reduce_alphabet(regexps...));
 }
 
 } // trick::state_machine::detail
@@ -108,7 +153,6 @@ private:
         state_id next{0};
 };
 
-using symbol = int;
 using tag = int;
 
 struct nfa {
