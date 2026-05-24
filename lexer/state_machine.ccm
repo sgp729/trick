@@ -153,8 +153,6 @@ private:
         state_id next{0};
 };
 
-using tag = int;
-
 struct nfa {
 
         struct transition {
@@ -168,17 +166,20 @@ struct nfa {
         std::vector<transition> transitions;
 };
 
+template<class T>
 struct tagged_nfa {
 
+        using tag = T;
         using transition = nfa::transition;
+
         struct accepting {
                 state_id id;
-                std::vector<tag> tags;
+                tagged_nfa::tag tag;
         };
 
         state_id start;
-        std::vector<accepting> ends;
-        std::vector<transition> transitions;
+        std::vector<accepting> ends{};
+        std::vector<transition> transitions{};
 };
 
 constexpr detail::nfa build_epsilon(state_allocator& alloc) noexcept {
@@ -377,6 +378,25 @@ noexcept {
                 nfa = build_concat(nfa, thompson_construction(regexp, alphabet, alloc));
         }
         return nfa;
+}
+
+template<class T, regexp::regexp... Rs, class A>
+constexpr detail::tagged_nfa<T>
+thompson_construction
+        (const description<T, Rs...>& description, const A& alphabet)
+noexcept {
+
+        auto [...pairs] = description;
+        state_allocator alloc{};
+        detail::tagged_nfa<T> final_nfa{ .start = alloc.allocate() };
+
+        template for (auto&& [regexp, tag] : {pairs...}) {
+                detail::nfa sub_nfa = thompson_construction(regexp, alphabet, alloc);
+                final_nfa.transitions.append_range(sub_nfa.transitions);
+                final_nfa.transitions.emplace_back(final_nfa.start, sub_nfa.start);
+                final_nfa.ends.emplace_back(sub_nfa.end, tag);
+        }
+        return final_nfa;
 }
 
 } // trick::state_machine::detail
