@@ -40,11 +40,9 @@ template<regexp_char C> atom(C) -> atom<char_type>;
 template<regexp_char C, int N>
 struct literal : detail::regexp_tag {
 
-        constexpr literal(C (&)[N]) noexcept;
+        constexpr literal(const C (&)[N]) noexcept;
         char_type chars[N-1];
 };
-
-template<regexp_char C, int N> literal(C (&)[N]) -> literal<char_type, N-1>;
 
 template<regexp_char C>
 struct range : detail::regexp_tag {
@@ -96,7 +94,7 @@ constexpr atom<C>::atom(C atom_char) noexcept
         : atom_char(atom_char) {}
 
 template<regexp_char C, int N>
-constexpr literal<C, N>::literal(C (&c_string)[N]) noexcept {
+constexpr literal<C, N>::literal(const C (&c_string)[N]) noexcept {
         std::ranges::copy_n(c_string, N-1, chars);
 }
 
