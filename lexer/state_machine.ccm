@@ -211,6 +211,8 @@ build_union(const detail::nfa& nfa1, const detail::nfa& nfa2, state_allocator& a
                 .start = start,
                 .end = end,
                 .transitions = {
+                        {start, nfa1.start},
+                        {start, nfa2.start},
                         {nfa1.end, end},
                         {nfa2.end, end}
                 }
@@ -294,6 +296,7 @@ noexcept {
         template for (char_type next : {rest...}) {
                 nfa = build_concat(nfa, build_symbol(alphabet.to_symbol(next), alloc));
         }
+        return nfa;
 }
 
 template<regexp::regexp_char C, class A>
@@ -321,7 +324,7 @@ noexcept {
         detail::nfa nfa = thompson_construction(regexp, alphabet, alloc);
 
         template for (auto regexp : {rest...}) {
-                nfa = detail::build_union(nfa, thompson_construction(regexp), alloc);
+                nfa = detail::build_union(nfa, thompson_construction(regexp, alphabet, alloc), alloc);
         }
         return nfa;
 }
