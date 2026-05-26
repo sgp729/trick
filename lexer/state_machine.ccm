@@ -404,6 +404,35 @@ noexcept {
 
 } // trick::state_machine::detail
 
+namespace trick::state_machine::detail { // detail for tagged dfa construction
+
+template<class N>
+constexpr std::set<state_id>
+epsilon_closure(const N& nfa, const std::set<state_id>& from) {
+
+        std::set<state_id> closure{};
+        std::stack<state_id> checklist{std::from_range, from};
+
+        while (not checklist.empty()) {
+                state_id state = checklist.top();
+                checklist.pop();
+
+                if (closure.contains(state)) { continue; }
+                closure.emplace(state);
+
+                auto epsilon_transitions = std::views::filter(
+                        nfa.transitions,
+                        [=](const auto& trans) { return trans.from == state and not trans.sym.has_value(); }
+                );
+                std::ranges::for_each(epsilon_transitions, [&](const auto& trans) {
+                        checklist.push(trans.to);
+                });
+        }
+        return closure;
+}
+
+} // trick::state_machine::detail
+
 export namespace trick::state_machine {
 
 class state_machine {
