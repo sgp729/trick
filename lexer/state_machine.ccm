@@ -424,11 +424,29 @@ epsilon_closure(const N& nfa, const std::set<state_id>& from) {
                         nfa.transitions,
                         [=](const auto& trans) { return trans.from == state and not trans.sym.has_value(); }
                 );
-                std::ranges::for_each(epsilon_transitions, [&](const auto& trans) {
-                        checklist.push(trans.to);
-                });
+                checklist.push_range(
+                        std::views::transform(epsilon_transitions, &N::transition::to)
+                );
         }
         return closure;
+}
+
+template<class N>
+constexpr std::set<state_id>
+symbol_reachable(const N& nfa, const std::set<state_id> from, symbol sym) {
+
+        std::set<state_id> reachable{};
+        std::ranges::for_each(from, [&](state_id state) {
+
+                auto symbol_transitions = std::views::filter(
+                        nfa.transitions,
+                        [=](const auto& trans) { return trans.from == state and trans.sym == sym; }
+                );
+                reachable.insert_range(
+                        std::views::transform(symbol_transitions, &N::transition::to)
+                );
+        });
+        return reachable;
 }
 
 } // trick::state_machine::detail
