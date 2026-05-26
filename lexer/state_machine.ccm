@@ -36,6 +36,7 @@ public:
 
         constexpr symbol to_symbol(const char_type&) const noexcept;
         constexpr std::vector<symbol> to_symbols(const char_range&) const noexcept;
+        constexpr std::vector<symbol> all_symbols() const noexcept;
 
 private:
         flat_char_ranges ranges;
@@ -63,6 +64,12 @@ constexpr std::vector<symbol> atomic_alphabet::to_symbols(const char_range& rang
                 ranges.begin(), std::ranges::find(ranges, second, &char_range::second)
         );
         return std::vector{std::from_range, std::views::iota(first_sym, second_sym + 1)};
+}
+
+constexpr std::vector<symbol> atomic_alphabet::all_symbols() const noexcept {
+
+        symbol start{0}, end = ranges.size();
+        return std::vector{std::from_range, std::views::iota(start, end)};
 }
 
 template<regexp::regexp_char C>
