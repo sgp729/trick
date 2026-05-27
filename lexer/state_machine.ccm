@@ -415,6 +415,27 @@ namespace trick::state_machine::detail { // detail for tagged dfa construction
 
 using state_set = std::set<state_id>;
 
+template<class T>
+struct tagged_dfa {
+
+        using tag = T;
+
+        struct transition {
+                state_set from;
+                state_set to;
+                symbol sym;
+        };
+
+        struct accepting {
+                state_set state;
+                std::vector<tagged_dfa::tag> tag;
+        };
+
+        state_set start;
+        std::vector<accepting> ends{};
+        std::vector<transition> transitions{};
+};
+
 template<class N>
 constexpr state_set
 epsilon_closure(const N& nfa, const state_set& from) noexcept {
@@ -425,7 +446,6 @@ epsilon_closure(const N& nfa, const state_set& from) noexcept {
         while (not checklist.empty()) {
                 state_id state = checklist.top();
                 checklist.pop();
-
                 if (not closure.insert(state).second) { continue; }
 
                 auto epsilon_transitions = std::views::filter(
@@ -455,6 +475,50 @@ symbol_reachable(const N& nfa, const state_set& from, symbol sym) noexcept {
                 );
         });
         return reachable;
+}
+
+template<class T>
+constexpr void
+add_symbol_transition(
+        const detail::tagged_nfa<T>& nfa,
+        detail::tagged_dfa<T>& dfa,
+        std::stack<state_set>& checklist,
+        const state_set& state,
+        symbol sym
+) noexcept {
+
+        state_set reachable = detail::epsilon_closure(nfa, detail::symbol_reachable(nfa, state, sym));
+        checklist.push(reachable);
+        dfa.transitions.emplace_back(state, reachable, sym);
+
+        auto tags = std::views::all(nfa.ends)
+                  | std::views::filter([&](auto accepting) { return reachable.contains(accepting.id); })
+                  | std::views::transform(&tagged_nfa<T>::accepting::tag)
+                  | std::ranges::to<std::vector>();
+        if (not tags.empty()) { dfa.ends.emplace_back(reachable, tags); }
+}
+
+template<class T, class A>
+constexpr detail::tagged_dfa<T>
+subset_construction(const detail::tagged_nfa<T> nfa, const A& alphabet) noexcept {
+
+        std::vector<symbol> all_syms = alphabet.all_symbols();
+        detail::tagged_dfa<T> dfa{ .start = detail::epsilon_closure(nfa, {nfa.start})};
+
+        std::set<state_set> complete;
+        std::stack<state_set> checklist(std::from_range, std::views::single(dfa.start));
+
+        while (not checklist.empty()) {
+                state_set state = checklist.top();
+                checklist.pop();
+                if (not complete.insert(state).second) { continue; }
+
+                std::ranges::for_each(all_syms, [&](symbol sym) {
+                        detail::add_symbol_transition(nfa, dfa, checklist, state, sym);
+                });
+
+        }
+        return dfa;
 }
 
 } // trick::state_machine::detail
