@@ -413,19 +413,20 @@ noexcept {
 
 namespace trick::state_machine::detail { // detail for tagged dfa construction
 
-template<class N>
-constexpr std::set<state_id>
-epsilon_closure(const N& nfa, const std::set<state_id>& from) {
+using state_set = std::set<state_id>;
 
-        std::set<state_id> closure{};
+template<class N>
+constexpr state_set
+epsilon_closure(const N& nfa, const state_set& from) noexcept {
+
+        state_set closure{};
         std::stack<state_id> checklist{std::from_range, from};
 
         while (not checklist.empty()) {
                 state_id state = checklist.top();
                 checklist.pop();
 
-                if (closure.contains(state)) { continue; }
-                closure.emplace(state);
+                if (not closure.insert(state).second) { continue; }
 
                 auto epsilon_transitions = std::views::filter(
                         nfa.transitions,
@@ -439,10 +440,10 @@ epsilon_closure(const N& nfa, const std::set<state_id>& from) {
 }
 
 template<class N>
-constexpr std::set<state_id>
-symbol_reachable(const N& nfa, const std::set<state_id> from, symbol sym) {
+constexpr state_set
+symbol_reachable(const N& nfa, const state_set& from, symbol sym) noexcept {
 
-        std::set<state_id> reachable{};
+        state_set reachable{};
         std::ranges::for_each(from, [&](state_id state) {
 
                 auto symbol_transitions = std::views::filter(
