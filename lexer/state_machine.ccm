@@ -523,26 +523,62 @@ subset_construction(const detail::tagged_nfa<T> nfa, const A& alphabet) noexcept
 
 } // trick::state_machine::detail
 
+namespace trick::state_machine::detail {
+
+struct state_annotation {
+        bool is_final{};
+        bool is_error{};
+};
+
+} // trick::state_machine::detail
+
 export namespace trick::state_machine {
 
 class state_machine {
 public:
+        using state = int;
+        using symbol = int;
+
         template<class T, regexp::regexp... Rs>
         constexpr state_machine(const description<T, Rs...>& description) noexcept;
+
+        constexpr state start_state() const noexcept;
+        constexpr state transition(state current, symbol input) const noexcept;
+
+        constexpr bool is_final(state state) const noexcept;
+        constexpr bool is_error(state state) const noexcept;
+
+        constexpr std::span<const state> matches(state state) const noexcept;
+
+private:
+        state first_state{};
+        std::size_t num_states{}, num_symbols{};
+
+        std::span<state> transition_table;
+        std::span<detail::state_annotation> annotations;
 };
 
 template<class T, regexp::regexp... Rs>
 constexpr state_machine::state_machine(const description<T, Rs...>& description) noexcept {
 
-        auto [...desc_pairs] = description;
-        auto [...regexps] = { desc_pairs.first... };
+}
 
-        // auto reduced_alphabet = detail::reduce_alphabet(regexps...);
+constexpr state_machine::state state_machine::start_state() const noexcept {
+        return first_state;
+}
 
-        // auto nfa = detail::construct_nfa(description, reduced_alphabet);
-        // auto dfa = detail::construct_dfa(nfa);
+constexpr state_machine::state
+state_machine::transition(state_machine::state current, state_machine::symbol input)
+const noexcept {
+        return transition_table[current * num_symbols + input];
+}
 
-        // *some_internal_state* = detail::move_to_static_storage(dfa);
+constexpr bool state_machine::is_final(state_machine::state state) const noexcept {
+        return annotations[state].is_final;
+}
+
+constexpr bool state_machine::is_error(state_machine::state state) const noexcept {
+        return annotations[state].is_error;
 }
 
 } // trick::state_machine
