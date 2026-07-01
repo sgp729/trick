@@ -117,23 +117,31 @@ template<regexp::regexp... Rs>
 constexpr detail::flat_char_ranges reduce_alphabet(const Rs&... regexps) {
 
         detail::char_ranges all_char_ranges = detail::collect_char_ranges(regexps...);
+        if (all_char_ranges.empty()) { return {}; }
 
-        if (all_char_ranges.empty()) {
-                return {};
-        }
+        enum class bound_type { opening, closing };
+        using bound = std::pair<char_type, bound_type>;
+        std::set<bound> canonical_bounds;
 
-        std::set<char_type> canonical_bounds;
         for (auto&& range : all_char_ranges) {
-                canonical_bounds.insert({ range.first, range.second + 1 });
+                canonical_bounds.insert({
+                        {range.first, bound_type::opening},
+                        {range.second + 1, bound_type::closing}
+                });
         };
 
         detail::flat_char_ranges disjoint_char_ranges;
         auto sliding_window = std::views::slide(canonical_bounds, 2);
 
         for (auto&& range : sliding_window) {
-                auto cur = *range.begin();
-                auto next = *std::next(range.begin());
-                if (cur < next) { disjoint_char_ranges.emplace_back(cur, next - 1); }
+                auto [cur, cur_type] = *range.begin();
+                auto [next, next_type] = *std::next(range.begin());
+                if (
+                        cur < next &&
+                        (cur_type != bound_type::closing || next_type != bound_type::opening)
+                ) {
+                        disjoint_char_ranges.emplace_back(cur, next - 1);
+                }
         };
 
         return disjoint_char_ranges;
