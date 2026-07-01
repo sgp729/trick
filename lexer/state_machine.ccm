@@ -421,17 +421,17 @@ struct tagged_dfa {
         using tag = T;
 
         struct transition {
-                state_set from;
-                state_set to;
+                state_id from;
+                state_id to;
                 symbol sym;
         };
 
         struct accepting {
-                state_set state;
-                std::vector<tagged_dfa::tag> tag;
+                state_id state;
+                std::vector<tagged_dfa::tag> tags;
         };
 
-        state_set start;
+        state_id start;
         std::vector<accepting> ends{};
         std::vector<transition> transitions{};
 };
@@ -444,17 +444,13 @@ epsilon_closure(const N& nfa, const state_set& from) noexcept {
         std::stack<state_id> checklist{std::from_range, from};
 
         while (not checklist.empty()) {
-                state_id state = checklist.top();
-                checklist.pop();
+                state_id state = checklist.top(); checklist.pop();
                 if (not closure.insert(state).second) { continue; }
 
-                auto epsilon_transitions = std::views::filter(
-                        nfa.transitions,
-                        [=](const auto& trans) { return trans.from == state and not trans.sym.has_value(); }
-                );
-                checklist.push_range(
-                        std::views::transform(epsilon_transitions, &N::transition::to)
-                );
+                for (const auto& trans : nfa.transitions) {
+                        if (trans.from != state or trans.sym.has_value()) { continue; }
+                        checklist.push(trans.to);
+                }
         }
         return closure;
 }
@@ -466,37 +462,48 @@ symbol_reachable(const N& nfa, const state_set& from, symbol sym) noexcept {
         state_set reachable{};
         for (state_id state : from) {
 
-                auto symbol_transitions = std::views::filter(
-                        nfa.transitions,
-                        [=](const auto& trans) { return trans.from == state and trans.sym == sym; }
-                );
-
-                reachable.insert_range(
-                        std::views::transform(symbol_transitions, &N::transition::to)
-                );
+                for (const auto& trans : nfa.transitions) {
+                        if (trans.from != state or trans.sym != sym) { continue; }
+                        reachable.insert(trans.to);
+                }
         };
         return reachable;
 }
 
-template<class T>
+template<class T, class Alloc>
 constexpr void
 add_symbol_transition(
         const detail::tagged_nfa<T>& nfa,
         detail::tagged_dfa<T>& dfa,
         std::stack<state_set>& checklist,
+        std::map<state_set, state_id>& nfa_to_dfa_state,
+        Alloc& alloc,
         const state_set& state,
         symbol sym
 ) noexcept {
 
         state_set reachable = detail::epsilon_closure(nfa, detail::symbol_reachable(nfa, state, sym));
         checklist.push(reachable);
-        dfa.transitions.emplace_back(state, reachable, sym);
 
-        auto tags = std::views::all(nfa.ends)
-                  | std::views::filter([&](auto accepting) { return reachable.contains(accepting.id); })
-                  | std::views::transform(&tagged_nfa<T>::accepting::tag)
-                  | std::ranges::to<std::vector>();
-        if (not tags.empty()) { dfa.ends.emplace_back(reachable, tags); }
+        state_id cur_state_id = nfa_to_dfa_state[state];
+        state_id reachable_id{};
+        if (auto it = nfa_to_dfa_state.find(reachable); it == nfa_to_dfa_state.end()) {
+                reachable_id = alloc.allocate();
+                nfa_to_dfa_state.emplace(reachable, reachable_id);
+        } else {
+                reachable_id = it->second;
+        }
+
+        dfa.transitions.emplace_back(cur_state_id, reachable_id, sym);
+
+        std::vector<T> tags;
+        for (auto accepting : nfa.ends) {
+                if (not reachable.contains(accepting.id)) { continue; }
+                tags.emplace_back(accepting.tag);
+        }
+        if (not tags.empty()) {
+                dfa.ends.emplace_back(reachable_id, std::move(tags));
+        }
 }
 
 template<class T, class A>
@@ -504,21 +511,27 @@ constexpr detail::tagged_dfa<T>
 subset_construction(const detail::tagged_nfa<T> nfa, const A& alphabet) noexcept {
 
         std::vector<symbol> all_syms = alphabet.all_symbols();
-        detail::tagged_dfa<T> dfa{ .start = detail::epsilon_closure(nfa, {nfa.start})};
+        state_allocator alloc{};
+        std::map<state_set, state_id> nfa_to_dfa_state;
+
+        state_set start_state = epsilon_closure(nfa, {nfa.start});
+        state_id start_id = alloc.allocate();
+        nfa_to_dfa_state.emplace(start_state, start_id);
+
+        detail::tagged_dfa<T> dfa{ .start = start_id };
 
         std::set<state_set> complete;
-        std::stack<state_set> checklist(std::from_range, std::views::single(dfa.start));
+        std::stack<state_set> checklist{std::from_range, std::views::single(start_state)};
 
         while (not checklist.empty()) {
-                state_set state = checklist.top();
-                checklist.pop();
+                state_set state = checklist.top(); checklist.pop();
                 if (not complete.insert(state).second) { continue; }
 
                 for (symbol sym : all_syms) {
-                        detail::add_symbol_transition(nfa, dfa, checklist, state, sym);
+                        detail::add_symbol_transition(nfa, dfa, checklist, nfa_to_dfa_state, alloc, state, sym);
                 };
-
         }
+
         return dfa;
 }
 
