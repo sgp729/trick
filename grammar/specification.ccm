@@ -1,0 +1,81 @@
+// Copyright (C) 2026 Georgiy Smykov
+
+/*
+        grammar/specification.ccm
+        Context-free grammar specification container.
+
+        Example:
+        auto spec = grammar::specification();
+
+        spec.define("lit") = spec.value(token_kind::literal);
+        spec.define("plus") = spec.value(token_kind::plus);
+        spec.define("add") = spec.concat("lit", "plus", "lit");
+*/
+
+export module specification;
+import std;
+
+namespace trick::grammar {
+
+using term_id = int;
+
+struct empty {};
+struct value {
+        using type = int;
+        type value;
+};
+
+struct value_range {
+        using type = value::type;
+        type begin;
+        type end;
+};
+
+struct concat { std::vector<term_id> children; };
+struct alternate { std::vector<term_id> children; };
+struct star { term_id child; };
+
+using term = std::variant<
+        term_id,
+        empty,
+        value,
+        value_range,
+        concat,
+        alternate,
+        star
+>;
+
+} // namespace trick::grammar
+
+export namespace trick::grammar {
+
+class specification {
+private:
+        struct rule_proxy {
+                term_id& map_ref;
+                term_id operator=(term_id term) const noexcept;
+        };
+
+public:
+        constexpr term_id empty() noexcept;
+        constexpr term_id value(value::type value) noexcept;
+        constexpr term_id
+        value_range(value_range::type begin, value_range::type end) noexcept;
+
+        template<class... Ts>
+        constexpr term_id concat(Ts&&... terms) noexcept;
+
+        template<class... Ts>
+        constexpr term_id alternate(Ts&&... terms) noexcept;
+
+        template<class T>
+        constexpr term_id star(T&& term) noexcept;
+
+        constexpr rule_proxy define(std::string_view name) noexcept;
+
+private:
+        std::vector<term> all_terms;
+        std::unordered_map<std::string_view, term_id> named_terms;
+};
+
+} // namespace trick::grammar
