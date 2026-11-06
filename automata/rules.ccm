@@ -53,17 +53,17 @@ public:
         };
 
 public:
-        consteval rules() = default;
+        constexpr rules() = default;
 
-        consteval rule_proxy& variable(const name& name);
+        constexpr rule_proxy& variable(const name& name);
 
-        consteval index terminal(symbol symbol);
-        template<one_of<symbol, name>... T> consteval index concat(T... inputs);
-        template<one_of<symbol, name>... T> consteval index any(T... inputs);
-        template<one_of<symbol, name> T> consteval index star(T input);
+        constexpr index terminal(symbol symbol);
+        template<one_of<symbol, name>... T> constexpr index concat(T... inputs);
+        template<one_of<symbol, name>... T> constexpr index any(T... inputs);
+        template<one_of<symbol, name> T> constexpr index star(T input);
 
 private:
-        std::vector<rule> rules;
+        std::vector<rule> rules_vec;
 
         std::unordered_map<Sym, index> symbols;
         std::unordered_map<std::string, index> names;
@@ -74,26 +74,26 @@ private:
 namespace trick::automata {
 
 template<class Sym>
-consteval rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
+constexpr rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
 
         auto name_it = names.find(name);
         if (name_it == names.end()) {
-                index new_idx = rules.size();
-                rules.emplace_back();
+                index new_idx = rules_vec.size();
+                rules_vec.emplace_back();
                 std::tie(name_it, std::ignore) = names.emplace(name, new_idx);
         }
 
         index idx = name_it->second;
-        return rule_proxy{idx, rules[idx]};
+        return rule_proxy{idx, rules_vec[idx]};
 }
 
 template<class Sym>
-consteval rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
+constexpr rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
 
         auto symbol_it = symbols.find(symbol);
         if (symbol_it == symbols.end()) {
-                index new_idx = rules.size();
-                rules.push_back(terminal<Sym>(symbol));
+                index new_idx = rules_vec.size();
+                rules_vec.push_back(automata::terminal<Sym>(symbol));
                 std::tie(symbol_it, std::ignore) = symbols.emplace(symbol, new_idx);
         }
 
@@ -102,7 +102,7 @@ consteval rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
-consteval rules<Sym>::index rules<Sym>::concat(T... inputs) {
+constexpr rules<Sym>::index rules<Sym>::concat(T... inputs) {
 
         automata::concat<index> cat{};
 
@@ -114,15 +114,15 @@ consteval rules<Sym>::index rules<Sym>::concat(T... inputs) {
                 }
         }
 
-        index new_idx = rules.size();
-        rules.push_back(cat);
+        index new_idx = rules_vec.size();
+        rules_vec.push_back(cat);
 
         return new_idx;
 }
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
-consteval rules<Sym>::index rules<Sym>::any(T... inputs) {
+constexpr rules<Sym>::index rules<Sym>::any(T... inputs) {
 
         automata::any<index> any;
 
@@ -134,19 +134,19 @@ consteval rules<Sym>::index rules<Sym>::any(T... inputs) {
                 }
         }
 
-        index new_idx = rules.size();
-        rules.push_back(any);
+        index new_idx = rules_vec.size();
+        rules_vec.push_back(any);
 
         return new_idx;
 }
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name> T>
-consteval rules<Sym>::index rules<Sym>::star(T input) {
+constexpr rules<Sym>::index rules<Sym>::star(T input) {
 
         automata::star<index> star{input};
-        index new_idx = rules.size();
-        rules.push_back(star);
+        index new_idx = rules_vec.size();
+        rules_vec.push_back(star);
 
         return new_idx;
 }
