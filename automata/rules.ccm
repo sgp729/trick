@@ -23,7 +23,7 @@ template<class I> struct any { std::vector<I> rule_indexes; };
 template<class I> struct star { I rule_index; };
 
 template<class T, class... Any>
-concept one_of = (std::is_same_v<T, Any> || ...);
+concept one_of = (std::convertible_to<T, Any> || ...);
 
 } // trick::automata
 
@@ -38,6 +38,7 @@ public:
 
 public:
         using rule = std::variant<
+                std::monostate,
                 automata::terminal<Sym>,
                 automata::concat<index>,
                 automata::any<index>,
@@ -47,15 +48,15 @@ public:
 
         struct rule_proxy {
                 index rule_index;
-                rule& rule_ref;
-                rule_proxy& operator=(index rule_index);
-                rule_proxy& operator=(symbol symbol);
+                rules& parent_rules;
+                constexpr rule_proxy& operator=(index rule_index);
+                constexpr rule_proxy& operator=(symbol symbol);
         };
 
 public:
         constexpr rules() = default;
 
-        constexpr rule_proxy& variable(const name& name);
+        constexpr rule_proxy variable(const name& name);
 
         constexpr index terminal(symbol symbol);
         template<one_of<symbol, name>... T> constexpr index concat(T... inputs);
@@ -67,6 +68,8 @@ private:
 
         std::unordered_map<Sym, index> symbols;
         std::unordered_map<std::string, index> names;
+
+        friend rule_proxy;
 };
 
 } // trick::automata
@@ -74,7 +77,7 @@ private:
 namespace trick::automata {
 
 template<class Sym>
-constexpr rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
+constexpr rules<Sym>::rule_proxy rules<Sym>::variable(const name& name) {
 
         auto name_it = names.find(name);
         if (name_it == names.end()) {
@@ -84,7 +87,7 @@ constexpr rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
         }
 
         index idx = name_it->second;
-        return rule_proxy{idx, rules_vec[idx]};
+        return rule_proxy{idx, *this};
 }
 
 template<class Sym>
@@ -149,6 +152,30 @@ constexpr rules<Sym>::index rules<Sym>::star(T input) {
         rules_vec.push_back(star);
 
         return new_idx;
+}
+
+template<class Sym>
+constexpr rules<Sym>::rule_proxy& rules<Sym>::rule_proxy::operator=(index rule_index) {
+
+        auto& rule_ref = parent_rules.rules_vec[this->rule_index];
+        if (not std::holds_alternative<std::monostate>(rule_ref)) {
+                throw std::invalid_argument("rule cannot be assigned more than once");
+        }
+
+        rule_ref = rule_index;
+        return *this;
+}
+
+template<class Sym>
+constexpr rules<Sym>::rule_proxy& rules<Sym>::rule_proxy::operator=(symbol symbol) {
+
+        auto& rule_ref = parent_rules.rules_vec[this->rule_index];
+        if (not std::holds_alternative<std::monostate>(rule_ref)) {
+                throw std::invalid_argument("rule cannot be assigned more than once");
+        }
+
+        rule_ref = parent_rules.terminal(symbol);
+        return *this;
 }
 
 } // trick::automata
