@@ -1,0 +1,72 @@
+// Copyright (C) 2026 Georgiy Smykov
+
+/*
+        automata/rules.ccm
+        Set of tools for compile-time definition of context-free grammar rules
+
+        Example:
+        // Define left-associative grammar for addition (E -> E + id | id)
+        trick::automata::rules rules;
+        rules.variable("id") = token_kind::id;
+        rules.variable("plus") = token_kind::plus;
+        rules.variable("expr") = rules.any(rules.concat("expr", "plus", "id"), "id");
+*/
+
+export module trick.automata;
+import std;
+
+namespace trick::automata {
+
+template<class S> struct terminal { S symbol; };
+template<class I> struct concat { std::vector<I> rule_indexes; };
+template<class I> struct any { std::vector<I> rule_indexes; };
+template<class I> struct star { I rule_index; };
+
+template<class T, class... Any>
+concept one_of = (std::is_same_v<T, Any> || ...);
+
+} // trick::automata
+
+export namespace trick::automata {
+
+template<class Sym>
+class rules {
+public:
+        using symbol = Sym;
+        using name = std::string;
+        using index = std::uint32_t;
+
+public:
+        using rule = std::variant<
+                automata::terminal<Sym>,
+                automata::concat<index>,
+                automata::any<index>,
+                automata::star<index>,
+                index
+        >;
+
+        struct rule_proxy {
+                index rule_index;
+                rule& rule_ref;
+                rule_proxy& operator=(index rule_index);
+                rule_proxy& operator=(symbol symbol);
+        };
+
+public:
+        constexpr rules() = default;
+
+        rule_proxy& variable(const name& name);
+
+        index terminal(symbol symbol);
+        template<one_of<symbol, name>... T> index concat(T... inputs);
+        template<one_of<symbol, name>... T> index any(T... inputs);
+        template<one_of<symbol, name> T> index star(T input);
+
+private:
+        std::vector<rule> rules;
+
+        std::unordered_map<Sym, index> symbols;
+        std::unordered_map<std::string, index> names;
+};
+
+} // trick::automata
