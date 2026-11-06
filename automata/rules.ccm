@@ -36,7 +36,7 @@ public:
         using name = std::string;
         using index = std::uint32_t;
 
-public:
+private:
         using rule = std::variant<
                 std::monostate,
                 automata::terminal<Sym>,
