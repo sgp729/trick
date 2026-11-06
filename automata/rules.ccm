@@ -53,14 +53,14 @@ public:
         };
 
 public:
-        constexpr rules() = default;
+        consteval rules() = default;
 
-        rule_proxy& variable(const name& name);
+        consteval rule_proxy& variable(const name& name);
 
-        index terminal(symbol symbol);
-        template<one_of<symbol, name>... T> index concat(T... inputs);
-        template<one_of<symbol, name>... T> index any(T... inputs);
-        template<one_of<symbol, name> T> index star(T input);
+        consteval index terminal(symbol symbol);
+        template<one_of<symbol, name>... T> consteval index concat(T... inputs);
+        template<one_of<symbol, name>... T> consteval index any(T... inputs);
+        template<one_of<symbol, name> T> consteval index star(T input);
 
 private:
         std::vector<rule> rules;
@@ -74,7 +74,7 @@ private:
 namespace trick::automata {
 
 template<class Sym>
-rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
+consteval rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
 
         auto name_it = names.find(name);
         if (name_it == names.end()) {
@@ -88,7 +88,7 @@ rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
 }
 
 template<class Sym>
-rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
+consteval rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
 
         auto symbol_it = symbols.find(symbol);
         if (symbol_it == symbols.end()) {
@@ -102,20 +102,53 @@ rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
-rules<Sym>::index rules<Sym>::concat(T... inputs) {
+consteval rules<Sym>::index rules<Sym>::concat(T... inputs) {
 
+        automata::concat<index> cat{};
+
+        template for (auto input : {inputs...}) {
+                if constexpr (std::is_same_v<decltype(input), symbol>) {
+                        cat.rule_indexes.push_back(terminal(input));
+                } else {
+                        cat.rule_indexes.push_back(variable(input).rule_index);
+                }
+        }
+
+        index new_idx = rules.size();
+        rules.push_back(cat);
+
+        return new_idx;
 }
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
-rules<Sym>::index rules<Sym>::any(T... inputs) {
+consteval rules<Sym>::index rules<Sym>::any(T... inputs) {
 
+        automata::any<index> any;
+
+        template for (auto input : {inputs...}) {
+                if constexpr (std::is_same_v<decltype(input), symbol>) {
+                        any.rule_indexes.push_back(terminal(input));
+                } else {
+                        any.rule_indexes.push_back(variable(input).rule_index);
+                }
+        }
+
+        index new_idx = rules.size();
+        rules.push_back(any);
+
+        return new_idx;
 }
 
 template<class Sym>
 template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name> T>
-rules<Sym>::index rules<Sym>::star(T input) {
+consteval rules<Sym>::index rules<Sym>::star(T input) {
 
+        automata::star<index> star{input};
+        index new_idx = rules.size();
+        rules.push_back(star);
+
+        return new_idx;
 }
 
 } // trick::automata
