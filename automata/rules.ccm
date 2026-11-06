@@ -70,3 +70,52 @@ private:
 };
 
 } // trick::automata
+
+namespace trick::automata {
+
+template<class Sym>
+rules<Sym>::rule_proxy& rules<Sym>::variable(const name& name) {
+
+        auto name_it = names.find(name);
+        if (name_it == names.end()) {
+                index new_idx = rules.size();
+                rules.emplace_back();
+                std::tie(name_it, std::ignore) = names.emplace(name, new_idx);
+        }
+
+        index idx = name_it->second;
+        return rule_proxy{idx, rules[idx]};
+}
+
+template<class Sym>
+rules<Sym>::index rules<Sym>::terminal(symbol symbol) {
+
+        auto symbol_it = symbols.find(symbol);
+        if (symbol_it == symbols.end()) {
+                index new_idx = rules.size();
+                rules.push_back(terminal<Sym>(symbol));
+                std::tie(symbol_it, std::ignore) = symbols.emplace(symbol, new_idx);
+        }
+
+        return symbol_it->second;
+}
+
+template<class Sym>
+template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
+rules<Sym>::index rules<Sym>::concat(T... inputs) {
+
+}
+
+template<class Sym>
+template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name>... T>
+rules<Sym>::index rules<Sym>::any(T... inputs) {
+
+}
+
+template<class Sym>
+template<one_of<typename rules<Sym>::symbol, typename rules<Sym>::name> T>
+rules<Sym>::index rules<Sym>::star(T input) {
+
+}
+
+} // trick::automata
